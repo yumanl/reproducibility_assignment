@@ -124,7 +124,6 @@ descriptive
 # Runs a 4-way ANOVA
 anova <- aov(pga ~ crowding * task * loop * target_size, data = tidy_data)
 summary(anova)
-etaSquared(anova)
 
 # Check values
 task_crowding_p <- 0.1050
