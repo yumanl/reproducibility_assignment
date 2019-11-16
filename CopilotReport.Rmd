@@ -1,0 +1,177 @@
+---
+title: "Reproducibility Report"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+---
+
+# Report Details
+
+```{r}
+articleID <- 6-1-2015 # insert the article ID code here e.g., "10-3-2015"
+reportType <- "pilot" # specify whether this is the 'pilot' report or 'copilot' report
+pilotNames <- "Brendan Fereday" # insert the pilot's name here e.g., "Tom Hardwicke".
+copilotNames <- "Yuman Li" # # insert the co-pilot's name here e.g., "Michael Frank".
+pilotTTC <- NA # insert the pilot's estimated time to complete (in minutes, it is fine to approximate) e.g., 120
+copilotTTC <- 120 # insert the co-pilot's estimated time to complete (in minutes, it is fine to approximate) e.g., 120
+pilotStartDate <- as.Date("11/08/19", format = "%m/%d/%y") # insert the piloting start date in US format e.g., as.Date("01/25/18", format = "%m/%d/%y")
+copilotStartDate <- 11/16/19 # insert the co-piloting start date in US format e.g., as.Date("01/25/18", format = "%m/%d/%y")
+completionDate <- 11/16/19 # insert the date of final report completion in US format e.g., as.Date("01/25/18", format = "%m/%d/%y")
+```
+
+------
+
+#### Methods summary: 
+
+In experiment 1, ten participants were seated at a table in a chin rest to direct their vision towards the fixation point 45 cm away. They were fitted with PLATO goggles that could be opened and closed. Their thumb and index finger of their right hand were fitted with OPTOTRAK infrared sensors to measure the distance between the thumb and index finger. Thirty degrees to the right, outside their direct line of vision, was a target, and depending on the condition, flankers with the target. These were round, white disks of varrying size. There were six flanker disks and one target disc, either 3.00 or 3.75 cm, depending on the condition.
+
+In this experiment, there were 16 conditions: 2 crowding conditions (crowded[flankers] or uncrowded[no flankers]), 2 tasks (grasping or manual estimation), 2 viewing conditions (closed or open loop), and 2 target sizes (3.0 cm or 3.75 cm). Each combination was presented 10 times with 160 trials in total.
+
+------
+
+#### Target outcomes: 
+
+Experiment 1 was designed to explore the effects of crowding on perception and action, with a particular focus on whether participants could scale their grip aperture to the size of the target even when they could not consciously identify the size of the target. We carried out a four-way repeated measures ANOVA on the manual estimates and PGAs with task (estimation vs. grasping), crowding condition (uncrowded vs. crowded), viewing condition (closed- vs. open-loop), and target size (3.0 vs. 3.75 cm) as main factors. The significant interaction between task and crowding condition, F(1, 9) = 6.818, p = .028, suggested that crowding had different effects on performance of the grasping and manual estimation tasks. Not surprisingly, when the target was presented in isolation, participants were able to manually estimate the sizes of the two targets—and this was true for both closed-loop trials, t(9) = 7.23, p < .001, and open-loop trials, t(9) = 9.19, p < .001. Similarly, participants showed excellent grip scaling for targets presented in isolation on both closed-loop trials, t(9) = 4.29, p = .002, and openloop trials, t(9) = 4.79, p = .001 (Fig. 3). Things were quite different, however, when the target disks were surrounded by flankers. In this condition, participants could no longer discriminate between the two disk sizes using a manual estimate closed-loop trials: t(9) = 1.02, p = .334; open-loop trials: t(9) = 1.78, p = .108?presumably because the size of the target was perceptually invisible. (Note that we use the term invisible to refer to the fact that participants could not identify the size of the target, even though they were aware of its presence and position.) In contrast, when participants were asked to grasp the same targets, their PGAs were still scaled to target size?closed-loop trials: t(9) = 4.21, p = .002; open-loop trials: t(9) = 3.392, p = .008 (Fig. 3).
+
+------
+
+```{r global_options, include=FALSE}
+# sets up some formatting options for the R Markdown document
+knitr::opts_chunk$set(echo=TRUE, warning=FALSE, message=FALSE)
+```
+
+# Step 1: Load packages and prepare report object
+
+```{r}
+# load packages
+library(knitr) # for kable table formating
+library(haven) # import and export 'SPSS', 'Stata' and 'SAS' Files
+library(readxl) # import excel files
+library(ReproReports) # custom reporting functions
+library(afex) # for ANOVA
+library(multcomp) # dependencies of afex
+library(tidyverse) # for data munging
+library(ggplot2)
+library(ggthemes)
+```
+
+
+```{r}
+# Prepare report object. This will be updated automatically by the reproCheck function each time values are compared
+reportObject <- data.frame(dummyRow = TRUE, reportedValue = NA, obtainedValue = NA, valueType = NA, percentageError = NA, comparisonOutcome = NA, eyeballCheck = NA)
+```
+
+# Step 2: Load data
+
+```{r}
+raw_data <- read_excel("data/data_Exp1.xlsx", 
+  sheet = "summary") #selects the "summary" sheet from the data file
+```
+
+# Step 3: Tidy data
+
+```{r}
+raw_data <- raw_data %>% 
+  dplyr::select(-...6, -...11, -...16) %>%  #gets rid of empty dividing columns
+  rename(clg_un_3 = "closed-loop grasping", clg_un_3.75 = ...3, clg_c_3 = ...4, clg_c_3.75 = ...5, olg_un_3 = "open-loop_grasping", olg_un_3.75 = ...8, olg_c_3 = ...9, olg_c_3.75 = ...10, cle_un_3 = "closed-loop estimation", cle_un_3.75 = ...13, cle_c_3 = ...14, cle_c_3.75 = ...15, ole_un_3 = "open-loop estimation", ole_un_3.75 = ...18, ole_c_3 = ...19, ole_c_3.75 = ...20) %>%  #collapse first two rows into the names of the columns; each column title is now a unique condition
+  slice(-1,-2, -13) #takes out first two rows (with the information that has now been collapsed into column names), and the last row containing mean pga for each condition
+```
+
+```{r}
+# Creates the data table long-data
+# Uses column titles to create new variable "condition"
+# Renames ...1 column "sub_id"
+long_data <- raw_data %>% 
+  pivot_longer(-"...1", names_to = "condition", values_to = "pga") %>% 
+  rename(sub_id = "...1")
+
+# Disagregates "condition" variable into new columns
+long_data$loop <- ifelse(grepl("cl", long_data$condition), 'closed', 'open')
+long_data$crowding <- ifelse(grepl("un", long_data$condition), 'uncrowded', 'crowded')
+long_data$target_size <- ifelse(grepl("3.75", long_data$condition), '3.75', '3')
+long_data$task <- ifelse(grepl("e", long_data$condition), 'estimation', 'grasp')
+
+# Creates new tidy_data data frame with "condition" variable removed
+tidy_data <- long_data[c("sub_id", "pga", "task", "loop", "crowding", "target_size")]
+
+# Transform pga into a numerical value
+tidy_data$pga <- as.numeric(tidy_data$pga)
+```
+
+
+# Step 4: Run analysis
+
+## Pre-processing
+
+No preprocessing necessary
+
+## Descriptive statistics
+
+
+```{r}
+descriptive <- tidy_data %>%
+  group_by(loop,crowding,target_size,task) %>%
+  summarise(meanpga = mean(pga))
+descriptive
+```
+
+## Inferential statistics
+
+"We carried out a four-way repeated measures ANOVA on the manual estimates and PGAs with task (estimation vs. grasping), crowding condition (uncrowded vs. crowded), viewing condition (closed- vs. open-loop), and target size (3.0 vs. 3.75 cm) as main factors. The significant interaction between task and crowding condition, F(1, 9) = 6.818, p = .028, suggested that crowding had different effects on performance of the grasping and manual estimation tasks."
+
+```{r}
+# Runs a 4-way ANOVA
+anova <- aov(pga ~ crowding * task * loop * target_size, data = tidy_data)
+summary(anova)
+etaSquared(anova)
+
+# Check values
+task_crowding_p <- 0.1050
+reportObject <- reproCheck(reportedValue = '.028', obtainedValue = task_crowding_p, valueType = 'p')
+task_crowding_F <- 2.662
+reportObject <- reproCheck(reportedValue = '6.818', obtainedValue = task_crowding_F, valueType = 'F')
+```
+
+
+# Step 5: Conclusion
+
+This reproducibility check was a failure. After conducting the four-way ANOVA, the significant interaction found by the authors between task and crowding condition [F(1,9) = 6.818, p = .028] was not found in my analysis. The interaction between those two factors in the reproduced ANOVA was not significant, F (1,9) = 2.662, p = .105--a 257% difference in p-values. There was however, a significant interaction between crowding and target-size factors,  F (1,9) = 6.741, p = .0104 that was not noted in the original article.
+
+
+```{r}
+reportObject <- reportObject %>%
+  filter(dummyRow == FALSE) %>% # remove the dummy row
+  select(-dummyRow) %>% # remove dummy row designation
+  mutate(articleID = articleID) %>% # add variables to report 
+  select(articleID, everything()) # make articleID first column
+
+# decide on final outcome
+if(any(reportObject$comparisonOutcome %in% c("MAJOR_ERROR", "DECISION_ERROR"))){
+  finalOutcome <- "Failure"
+}else{
+  finalOutcome <- "Success"
+}
+
+# collate report extra details
+reportExtras <- data.frame(articleID, pilotNames, copilotNames, pilotTTC, copilotTTC, pilotStartDate, copilotStartDate, completionDate, finalOutcome)
+
+# save report objects
+if(reportType == "pilot"){
+  write_csv(reportObject, "pilotReportDetailed.csv")
+  write_csv(reportExtras, "pilotReportExtras.csv")
+}
+
+if(reportType == "copilot"){
+  write_csv(reportObject, "copilotReportDetailed.csv")
+  write_csv(reportExtras, "copilotReportExtras.csv")
+}
+```
+
+# Session information
+
+[This function will output information about the package versions used in this report:]
+
+```{r session_info, include=TRUE, echo=TRUE, results='markup'}
+devtools::session_info()
+```
